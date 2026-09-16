@@ -2,6 +2,16 @@
 
 [English](https://github.com/alittlemore-dev/backend-sdk/blob/main/.github/README.md)
 
+| Категория | Технологии |
+|-----------|------------|
+| Покрытие | ![coverage-backend](./badges/coverage-backend.svg) |
+| Runtime | ![python](./badges/python.svg) ![async](./badges/async.svg) ![type-safe](./badges/type-safe.svg) |
+| Интеграция авторизации | ![litestar](./badges/litestar.svg) ![paseto](./badges/paseto.svg) |
+| Тестирование | ![pytest](./badges/pytest.svg) |
+| Качество | ![ruff](./badges/ruff.svg) ![mypy](./badges/mypy.svg) ![bandit](./badges/bandit.svg) ![pip-audit](./badges/pip-audit.svg) |
+| Инструменты | ![uv](./badges/uv.svg) |
+| CI/CD | ![github-actions](./badges/github-actions.svg) ![dependabot](./badges/dependabot.svg) |
+
 Общая backend-библиотека **alittlemore.dev**: интеграции, доменные сущности,
 middleware, helpers, utils и factories.
 

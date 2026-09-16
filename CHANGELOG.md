@@ -11,3 +11,4 @@
 - Add `backend_sdk.auth.testing` with a configurable fake authentication client and bearer-header
   helper for consumer service tests.
 - Allow `AuthPlugin` to omit HTTP client configuration when an authentication client is injected.
+- Add technology badges and an automatically updated coverage badge to the package documentation.
