@@ -6,6 +6,6 @@ bash scripts/install.sh lock-check
 bash scripts/lint.sh format-check
 bash scripts/lint.sh lint
 bash scripts/types.sh
-bash scripts/test.sh test
+bash scripts/test.sh coverage
 bash scripts/security.sh security
 bash scripts/build.sh package-check

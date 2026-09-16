@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Initialize the typed Python package and development infrastructure.
-- Add local quality gates, CI, release automation, and dependency updates.
-- Support the latest two stable Python minor versions (currently 3.13 and 3.14), with CI on both.
-- No runtime features or integrations are implemented yet.
+- Add typed auth principals, role checks, auth-api HTTP verification, and bounded per-process caching.
+- Add the optional Litestar plugin with default-deny routes, public-route opt-out, role guards, and no-store responses.
+- Add `auth-http` and `litestar` extras.
+- Add a runnable Litestar example and artifact checks for the optional integrations.
+- Fix positive-result caching, request-level redirect/timeout enforcement, strict bearer parsing,
+  and OpenAPI component merging.
