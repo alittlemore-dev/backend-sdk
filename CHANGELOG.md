@@ -8,3 +8,6 @@
 - Add a runnable Litestar example and artifact checks for the optional integrations.
 - Fix positive-result caching, request-level redirect/timeout enforcement, strict bearer parsing,
   and OpenAPI component merging.
+- Add `backend_sdk.auth.testing` with a configurable fake authentication client and bearer-header
+  helper for consumer service tests.
+- Allow `AuthPlugin` to omit HTTP client configuration when an authentication client is injected.

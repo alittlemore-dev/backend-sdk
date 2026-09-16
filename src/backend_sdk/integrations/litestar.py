@@ -107,10 +107,15 @@ class AuthPlugin(InitPlugin):
     def __init__(
         self,
         *,
-        config: AuthApiClientConfig,
+        config: AuthApiClientConfig | None = None,
         auth_client: AuthenticationClient | None = None,
     ) -> None:
-        self._client = auth_client or AuthApiClient(config=config)
+        if auth_client is not None:
+            self._client = auth_client
+            return
+        if config is None:
+            raise ValueError("config is required when auth_client is not provided")
+        self._client = AuthApiClient(config=config)
 
     def on_app_init(self, app_config: AppConfig) -> AppConfig:
         app_config.middleware.append(DefineMiddleware(AuthMiddleware, client=self._client))

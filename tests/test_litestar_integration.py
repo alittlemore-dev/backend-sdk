@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-
+import pytest
 from litestar import Litestar, Router, get, route
 from litestar.connection import Request
 from litestar.datastructures import State
@@ -7,22 +6,35 @@ from litestar.openapi.config import OpenAPIConfig
 from litestar.openapi.spec import Components, SecurityScheme
 from litestar.testing import TestClient
 
-from backend_sdk.auth import AuthenticationResult, Principal, RoleEnum
-from backend_sdk.auth.exceptions import AuthenticationServiceUnavailableError
+from backend_sdk.auth import Principal, RoleEnum
 from backend_sdk.auth.http import AuthApiClientConfig
+from backend_sdk.auth.testing import FakeAuthenticationClient
 from backend_sdk.integrations.litestar import AuthPlugin, RequireRole
 
 
-@dataclass
-class FakeAuthClient:
-    result: AuthenticationResult
-    closed: bool = False
+def test_plugin_accepts_injected_auth_client_without_http_config() -> None:
+    @get("/protected", sync_to_thread=False)
+    def protected() -> dict[str, str]:
+        return {"status": "ok"}
 
-    async def authenticate(self, *, token: str) -> AuthenticationResult:
-        return self.result
+    app = Litestar(
+        route_handlers=[protected],
+        plugins=[AuthPlugin(auth_client=FakeAuthenticationClient())],
+    )
 
-    async def aclose(self) -> None:
-        self.closed = True
+    with TestClient(app=app) as client:
+        assert (
+            client.get(
+                "/protected",
+                headers={"Authorization": "Bearer access-token"},
+            ).status_code
+            == 200
+        )
+
+
+def test_plugin_requires_http_config_without_injected_auth_client() -> None:
+    with pytest.raises(ValueError, match="config is required when auth_client is not provided"):
+        AuthPlugin()
 
 
 def test_plugin_protects_routes_by_default_and_skips_explicitly_public_route() -> None:
@@ -34,12 +46,7 @@ def test_plugin_protects_routes_by_default_and_skips_explicitly_public_route() -
     def health(request: Request[Principal, object, State]) -> dict[str, str]:
         return {"username": request.user.username}
 
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
     app = Litestar(
         route_handlers=[protected, health],
         plugins=[
@@ -73,12 +80,7 @@ def test_role_guard_allows_owner_and_rejects_regular_user() -> None:
     def admin() -> dict[str, str]:
         return {"status": "ok"}
 
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
     app = Litestar(
         route_handlers=[admin],
         plugins=[
@@ -99,10 +101,7 @@ def test_role_guard_allows_owner_and_rejects_regular_user() -> None:
             client.get("/admin", headers={"Authorization": "Bearer access-token"}).status_code
             == 403
         )
-        auth_client.result = AuthenticationResult(
-            principal=Principal(username="owner", role=RoleEnum.OWNER),
-            valid_for_seconds=60,
-        )
+        auth_client.set_authenticated(username="owner", role=RoleEnum.OWNER)
         assert (
             client.get("/admin", headers={"Authorization": "Bearer access-token"}).status_code
             == 200
@@ -114,12 +113,7 @@ def test_plugin_bypasses_cors_preflight_with_anonymous_principal() -> None:
     def preflight(request: Request[Principal, object, State]) -> dict[str, str]:
         return {"username": request.user.username}
 
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
     app = Litestar(
         route_handlers=[preflight],
         plugins=[
@@ -149,12 +143,7 @@ def test_public_route_does_not_disable_inherited_role_guard() -> None:
         guards=[RequireRole(RoleEnum.ADMIN)],
         route_handlers=[status],
     )
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="owner", role=RoleEnum.OWNER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="owner", role=RoleEnum.OWNER)
     app = Litestar(
         route_handlers=[admin_router],
         plugins=[
@@ -179,12 +168,7 @@ def test_plugin_rejects_malformed_credentials_and_auth_service_outage() -> None:
     def protected() -> dict[str, str]:
         return {"status": "ok"}
 
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
     app = Litestar(
         route_handlers=[protected],
         plugins=[
@@ -206,11 +190,7 @@ def test_plugin_rejects_malformed_credentials_and_auth_service_outage() -> None:
             client.get("/protected", headers={b"Authorization": b"Bearer \xe9"}).status_code == 401
         )
 
-        async def unavailable(*, token: str) -> AuthenticationResult:
-            _ = token
-            raise AuthenticationServiceUnavailableError
-
-        auth_client.authenticate = unavailable  # type: ignore[method-assign]
+        auth_client.set_unavailable()
         assert (
             client.get("/protected", headers={"Authorization": "Bearer token"}).status_code == 503
         )
@@ -218,12 +198,7 @@ def test_plugin_rejects_malformed_credentials_and_auth_service_outage() -> None:
 
 def test_plugin_adds_bearer_scheme_to_list_components_without_losing_existing_schemes() -> None:
     existing_scheme = SecurityScheme(type="apiKey", name="X-API-Key", security_scheme_in="header")
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
 
     app = Litestar(
         route_handlers=[],
@@ -264,12 +239,7 @@ def test_plugin_adds_bearer_scheme_to_list_components_without_losing_existing_sc
 def test_plugin_preserves_existing_bearer_scheme_in_object_components() -> None:
     existing_scheme = SecurityScheme(type="http", scheme="bearer", bearer_format="JWT")
     components = Components(security_schemes={"bearerAuth": existing_scheme})
-    auth_client = FakeAuthClient(
-        result=AuthenticationResult(
-            principal=Principal(username="user", role=RoleEnum.USER),
-            valid_for_seconds=60,
-        ),
-    )
+    auth_client = FakeAuthenticationClient(username="user", role=RoleEnum.USER)
 
     app = Litestar(
         route_handlers=[],

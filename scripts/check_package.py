@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INSTALL_VARIANTS = {
-    None: "import backend_sdk",
+    None: "from backend_sdk.auth.testing import FakeAuthenticationClient",
     "auth-http": "from backend_sdk.auth.http import AuthApiClient",
     "litestar": "from backend_sdk.integrations.litestar import AuthPlugin",
 }
