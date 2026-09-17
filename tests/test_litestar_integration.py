@@ -9,7 +9,7 @@ from litestar.testing import TestClient
 from backend_sdk.auth import Principal, RoleEnum
 from backend_sdk.auth.http import AuthApiClientConfig
 from backend_sdk.auth.testing import FakeAuthenticationClient
-from backend_sdk.integrations.litestar import AuthPlugin, RequireRole
+from backend_sdk.integrations.litestar import AuthContext, AuthPlugin, RequireRole
 
 
 def test_plugin_accepts_injected_auth_client_without_http_config() -> None:
@@ -73,6 +73,89 @@ def test_plugin_protects_routes_by_default_and_skips_explicitly_public_route() -
         assert client.get("/health").json() == {"username": "anonymous"}
 
     assert auth_client.closed is True
+
+
+def test_optional_route_allows_anonymous_requests_and_authenticates_present_bearer() -> None:
+    @get("/suggestions", opt={"auth_optional": True}, sync_to_thread=False)
+    def suggestions(
+        request: Request[Principal, AuthContext | None, State],
+    ) -> dict[str, str | int | None]:
+        return {
+            "username": request.user.username,
+            "role": request.user.role.value,
+            "validForSeconds": (
+                request.auth.valid_for_seconds if request.auth is not None else None
+            ),
+        }
+
+    auth_client = FakeAuthenticationClient(username="member", role=RoleEnum.USER)
+    app = Litestar(
+        route_handlers=[
+            Router(
+                path="/public",
+                route_handlers=[suggestions],
+                opt={"auth_public": True},
+            ),
+        ],
+        plugins=[AuthPlugin(auth_client=auth_client)],
+    )
+
+    with TestClient(app=app) as client:
+        anonymous_response = client.get("/public/suggestions")
+        authenticated_response = client.get(
+            "/public/suggestions",
+            headers={"Authorization": "Bearer optional-token"},
+        )
+
+    assert anonymous_response.status_code == 200
+    assert anonymous_response.json() == {
+        "username": "anonymous",
+        "role": "anon",
+        "validForSeconds": None,
+    }
+    assert authenticated_response.status_code == 200
+    assert authenticated_response.json() == {
+        "username": "member",
+        "role": "user",
+        "validForSeconds": 60,
+    }
+    assert authenticated_response.headers["cache-control"] == "no-store"
+    assert auth_client.tokens == ("optional-token",)
+
+
+def test_optional_route_rejects_bad_bearer_and_reports_verifier_outage() -> None:
+    @get("/activity", opt={"auth_optional": True}, sync_to_thread=False)
+    def activity() -> dict[str, str]:
+        return {"status": "ok"}
+
+    auth_client = FakeAuthenticationClient(username="member", role=RoleEnum.USER)
+    app = Litestar(
+        route_handlers=[activity],
+        plugins=[AuthPlugin(auth_client=auth_client)],
+    )
+
+    with TestClient(app=app) as client:
+        anonymous_response = client.get("/activity")
+        malformed_response = client.get(
+            "/activity",
+            headers={"Authorization": "Basic optional-token"},
+        )
+        auth_client.set_invalid_credentials()
+        invalid_response = client.get(
+            "/activity",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        auth_client.set_unavailable()
+        unavailable_response = client.get(
+            "/activity",
+            headers={"Authorization": "Bearer unavailable-token"},
+        )
+
+    assert anonymous_response.status_code == 200
+    assert malformed_response.status_code == 401
+    assert invalid_response.status_code == 401
+    assert unavailable_response.status_code == 503
+    assert auth_client.tokens == ("invalid-token", "unavailable-token")
 
 
 def test_role_guard_allows_owner_and_rejects_regular_user() -> None:

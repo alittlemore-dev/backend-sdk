@@ -44,10 +44,11 @@ uv add 'alittlemore-backend-sdk[litestar]'
 ```
 
 ```python
-from backend_sdk.auth import RoleEnum
+from backend_sdk.auth import Principal, RoleEnum
 from backend_sdk.auth.http import AuthApiClientConfig
-from backend_sdk.integrations.litestar import AuthPlugin, RequireRole
-from litestar import Litestar, get
+from backend_sdk.integrations.litestar import AuthContext, AuthPlugin, RequireRole
+from litestar import Litestar, Request, get
+from litestar.datastructures import State
 
 
 @get("/health", opt={"auth_public": True})
@@ -55,8 +56,15 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@get("/activity", opt={"auth_optional": True})
+async def activity(
+    request: Request[Principal, AuthContext | None, State],
+) -> dict[str, str]:
+    return {"username": request.user.username}
+
+
 app = Litestar(
-    route_handlers=[health],
+    route_handlers=[health, activity],
     plugins=[
         AuthPlugin(
             config=AuthApiClientConfig(
@@ -71,10 +79,13 @@ app = Litestar(
 ```
 
 Routes require a bearer token by default. Mark anonymous routes with
-`opt={"auth_public": True}` and protect privileged routes with
-`RequireRole(RoleEnum.ADMIN)`. Successful checks are cached in each process for
-at most 15 seconds; set `cache_ttl_seconds=0` to disable this. Services must
-still enforce resource ownership in their own domain logic.
+`opt={"auth_public": True}`. Use `opt={"auth_optional": True}` when a route accepts
+anonymous requests but should authenticate a bearer token when one is present; this also
+overrides an inherited `auth_public` option. Malformed or invalid supplied credentials still
+return 401, and an unavailable verifier returns 503. Protect privileged routes with
+`RequireRole(RoleEnum.ADMIN)`. Successful checks are cached in each process for at most 15
+seconds; set `cache_ttl_seconds=0` to disable this. Services must still enforce resource
+ownership in their own domain logic.
 
 The cache is intentionally process-local: it is a short availability and latency
 optimization, adds no infrastructure dependency, and never becomes an authorization

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-09-17
+
+- Add optional Litestar authentication: `auth_optional` routes accept anonymous requests and
+  authenticate a bearer token when one is present, including beneath an `auth_public` router.
+
+## 0.1.0 - 2026-09-17
+
 - Add typed auth principals, role checks, auth-api HTTP verification, and bounded per-process caching.
 - Add the optional Litestar plugin with default-deny routes, public-route opt-out, role guards, and no-store responses.
 - Add `auth-http` and `litestar` extras.

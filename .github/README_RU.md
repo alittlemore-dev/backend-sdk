@@ -44,10 +44,11 @@ uv add 'alittlemore-backend-sdk[litestar]'
 ```
 
 ```python
-from backend_sdk.auth import RoleEnum
+from backend_sdk.auth import Principal, RoleEnum
 from backend_sdk.auth.http import AuthApiClientConfig
-from backend_sdk.integrations.litestar import AuthPlugin, RequireRole
-from litestar import Litestar, get
+from backend_sdk.integrations.litestar import AuthContext, AuthPlugin, RequireRole
+from litestar import Litestar, Request, get
+from litestar.datastructures import State
 
 
 @get("/health", opt={"auth_public": True})
@@ -55,8 +56,15 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@get("/activity", opt={"auth_optional": True})
+async def activity(
+    request: Request[Principal, AuthContext | None, State],
+) -> dict[str, str]:
+    return {"username": request.user.username}
+
+
 app = Litestar(
-    route_handlers=[health],
+    route_handlers=[health, activity],
     plugins=[
         AuthPlugin(
             config=AuthApiClientConfig(
@@ -71,9 +79,12 @@ app = Litestar(
 ```
 
 Маршруты по умолчанию требуют bearer-токен. Для публичных укажите
-`opt={"auth_public": True}`, для ролей используйте `RequireRole(RoleEnum.ADMIN)`.
-Успешная проверка кешируется в каждом процессе максимум на 15 секунд; значение
-`cache_ttl_seconds=0` отключает кеш. Проверка владения конкретными ресурсами
+`opt={"auth_public": True}`. Для маршрута, который допускает анонимный запрос, но должен
+проверить bearer-токен при его наличии, используйте `opt={"auth_optional": True}`; этот режим
+также переопределяет унаследованный `auth_public`. Переданные некорректные credentials всё равно
+дают 401, а недоступность сервиса проверки — 503. Для ролей используйте
+`RequireRole(RoleEnum.ADMIN)`. Успешная проверка кешируется в каждом процессе максимум на 15
+секунд; значение `cache_ttl_seconds=0` отключает кеш. Проверка владения конкретными ресурсами
 остаётся ответственностью самого сервиса.
 
 Кеш намеренно локален для каждого процесса: это короткая оптимизация доступности

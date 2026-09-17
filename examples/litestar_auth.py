@@ -11,6 +11,11 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@get("/activity", opt={"auth_optional": True}, sync_to_thread=False)
+def activity(request: Request[Principal, AuthContext | None, State]) -> dict[str, str]:
+    return {"username": request.user.username, "role": request.user.role}
+
+
 @get("/me", sync_to_thread=False)
 def current_user(request: Request[Principal, AuthContext, State]) -> dict[str, str]:
     return {"username": request.user.username, "role": request.user.role}
@@ -28,7 +33,7 @@ admin_router = Router(
 )
 
 app = Litestar(
-    route_handlers=[health, current_user, admin_router],
+    route_handlers=[health, activity, current_user, admin_router],
     plugins=[
         AuthPlugin(
             config=AuthApiClientConfig(

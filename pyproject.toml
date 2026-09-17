@@ -1,6 +1,6 @@
 [project]
 name = "alittlemore-backend-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Shared backend building blocks for alittlemore.dev services."
 readme = ".github/README.md"
 requires-python = ">=3.13,<3.15"

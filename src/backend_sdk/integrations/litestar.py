@@ -50,6 +50,19 @@ class AuthMiddleware(AbstractAuthenticationMiddleware):
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         scope["user"] = Principal.anonymous()
         scope["auth"] = None
+        route_handler = scope.get("route_handler")
+        if (
+            scope["type"] == ScopeType.HTTP
+            and route_handler is not None
+            and route_handler.opt.get("auth_optional") is True
+        ):
+            connection = ASGIConnection[Any, Any, Any, Any](scope)
+            if connection.headers.get("Authorization") is not None:
+                auth_result = await self.authenticate_request(connection)
+                scope["user"] = auth_result.user
+                scope["auth"] = auth_result.auth
+            await self.app(scope, receive, send)
+            return
         await super().__call__(scope, receive, send)
 
     async def authenticate_request(
