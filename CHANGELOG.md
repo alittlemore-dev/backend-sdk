@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-04
 
-- Prepare version 0.3.0 with typed session/PAT verification v2, explicit route permissions,
+- Add typed session/PAT verification v2, explicit route permissions,
   and credential context. PAT verification bypasses caches and in-flight request sharing.
 - Preserve existing session clients and default authentication behavior; v2 clients validate
   all credential fields and reject malformed or cacheable PAT verification responses.
