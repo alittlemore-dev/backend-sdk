@@ -44,6 +44,10 @@ class FakeAuthenticationClient:
         )
         self._error_type = None
 
+    def set_result(self, result: AuthenticationResult) -> None:
+        self._result = result
+        self._error_type = None
+
     def set_invalid_credentials(self) -> None:
         self._error_type = InvalidCredentialsError
 

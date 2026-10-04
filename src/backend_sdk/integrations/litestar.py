@@ -22,18 +22,48 @@ from litestar.types import ASGIApp, Message, Receive, Scope, Send
 from backend_sdk.auth import (
     AuthenticationClient,
     AuthenticationServiceUnavailableError,
+    CredentialTypeEnum,
     InvalidCredentialsError,
     Principal,
     RoleEnum,
 )
 from backend_sdk.auth.http import AuthApiClient, AuthApiClientConfig
 
-__all__ = ["AuthContext", "AuthPlugin", "RequireRole"]
+__all__ = ["AuthContext", "AuthPlugin", "RequireRole", "authorize_pat_route"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AuthContext:
     valid_for_seconds: int
+    credential_type: CredentialTypeEnum = CredentialTypeEnum.SESSION
+    credential_id: str = ""
+    permissions: frozenset[str] = frozenset()
+    cache_ttl_seconds: int = 0
+
+    @property
+    def is_pat(self) -> bool:
+        return self.credential_type is CredentialTypeEnum.PAT
+
+    def allows_permissions(self, *permissions: str) -> bool:
+        return not self.is_pat or set(permissions).issubset(self.permissions)
+
+    def require_permissions(self, *permissions: str) -> None:
+        if not self.allows_permissions(*permissions):
+            raise PermissionDeniedException
+
+
+def authorize_pat_route(context: AuthContext, handler: BaseRouteHandler) -> None:
+    if not context.is_pat:
+        return
+    permissions = handler.opt.get("pat_permissions")
+    if (
+        handler.opt.get("pat_session_only") is True
+        or not isinstance(permissions, tuple | list)
+        or not permissions
+        or any(not isinstance(value, str) or not value for value in permissions)
+    ):
+        raise PermissionDeniedException
+    context.require_permissions(*permissions)
 
 
 class AuthMiddleware(AbstractAuthenticationMiddleware):
@@ -76,10 +106,15 @@ class AuthMiddleware(AbstractAuthenticationMiddleware):
             raise NotAuthorizedException from exc
         except AuthenticationServiceUnavailableError as exc:
             raise ServiceUnavailableException from exc
-        return LitestarAuthenticationResult(
-            user=result.principal,
-            auth=AuthContext(valid_for_seconds=result.valid_for_seconds),
+        context = AuthContext(
+            valid_for_seconds=result.valid_for_seconds,
+            credential_type=result.credential_type,
+            credential_id=result.credential_id,
+            permissions=result.permissions,
+            cache_ttl_seconds=result.cache_ttl_seconds,
         )
+        authorize_pat_route(context, connection.route_handler)
+        return LitestarAuthenticationResult(user=result.principal, auth=context)
 
     @staticmethod
     def _read_bearer_token(*, connection: ASGIConnection[Any, Any, Any, Any]) -> str:
@@ -155,7 +190,9 @@ def _add_bearer_auth_scheme(*, components: Components | list[Components]) -> Non
 
 
 def _bearer_auth_scheme() -> SecurityScheme:
-    return SecurityScheme(type="http", scheme="bearer", bearer_format="PASETO")
+    return SecurityScheme(
+        type="http", scheme="bearer", bearer_format="PASETO or personal API token"
+    )
 
 
 async def _set_private_cache_control(message: Message, scope: Scope) -> None:

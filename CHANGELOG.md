@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Prepare version 0.3.0 with typed session/PAT verification v2, explicit route permissions,
+  and credential context. PAT verification bypasses caches and in-flight request sharing.
+- Preserve existing session clients and default authentication behavior; v2 clients validate
+  all credential fields and reject malformed or cacheable PAT verification responses.
+
 ## 0.2.0 - 2026-09-17
 
 - Add optional Litestar authentication: `auth_optional` routes accept anonymous requests and

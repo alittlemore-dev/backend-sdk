@@ -10,7 +10,7 @@ from backend_sdk.auth.exceptions import (
     AuthenticationServiceUnavailableError,
     InvalidCredentialsError,
 )
-from backend_sdk.auth.models import AuthenticationResult, Principal, RoleEnum
+from backend_sdk.auth.models import AuthenticationResult, CredentialTypeEnum, Principal, RoleEnum
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -55,6 +55,8 @@ class AuthApiClient:
         await self._http_client.aclose()
 
     async def authenticate(self, *, token: str) -> AuthenticationResult:
+        if token.startswith("alm_pat_"):
+            return await self._authenticate_remote(token=token)
         cache_key = hashlib.sha256(token.encode()).hexdigest()
         now = time.monotonic()
         async with self._lock:
@@ -81,7 +83,11 @@ class AuthApiClient:
         started_at = time.monotonic()
         try:
             result = await self._authenticate_remote(token=token)
-            cache_seconds = min(self._config.cache_ttl_seconds, result.valid_for_seconds)
+            cache_seconds = min(
+                self._config.cache_ttl_seconds, result.valid_for_seconds, result.cache_ttl_seconds
+            )
+            if result.credential_type is CredentialTypeEnum.PAT:
+                return result
             if cache_seconds <= 0:
                 return result
             async with self._lock:
@@ -111,10 +117,14 @@ class AuthApiClient:
             raise InvalidCredentialsError
         if response.status_code != 200:
             raise AuthenticationServiceUnavailableError
-        return self._parse_response(response=response)
+        return self._parse_response(
+            response=response,
+            require_v2=token.startswith("alm_pat_")
+            or self._config.verify_url.rstrip("/").endswith("/v2"),
+        )
 
     @staticmethod
-    def _parse_response(*, response: httpx.Response) -> AuthenticationResult:
+    def _parse_response(*, response: httpx.Response, require_v2: bool) -> AuthenticationResult:
         try:
             payload = response.json()
         except (TypeError, ValueError) as exc:
@@ -139,7 +149,44 @@ class AuthApiClient:
             raise AuthenticationServiceUnavailableError from exc
         if role is RoleEnum.ANON:
             raise AuthenticationServiceUnavailableError
+        credential_type_value = payload.get("credentialType")
+        if (
+            credential_type_value is None
+            and not require_v2
+            and not any(
+                key in payload for key in ("credentialId", "permissions", "cacheTtlSeconds")
+            )
+        ):
+            return AuthenticationResult(
+                principal=Principal(username=username, role=role),
+                valid_for_seconds=valid_for_seconds,
+                cache_ttl_seconds=valid_for_seconds,
+            )
+        credential_id = payload.get("credentialId")
+        permissions = payload.get("permissions")
+        cache_ttl_seconds = payload.get("cacheTtlSeconds")
+        if (
+            not isinstance(credential_type_value, str)
+            or not isinstance(credential_id, str)
+            or not credential_id.strip()
+            or not isinstance(permissions, list)
+            or any(not isinstance(value, str) or not value.strip() for value in permissions)
+            or not isinstance(cache_ttl_seconds, int)
+            or isinstance(cache_ttl_seconds, bool)
+            or cache_ttl_seconds < 0
+        ):
+            raise AuthenticationServiceUnavailableError
+        try:
+            credential_type = CredentialTypeEnum(credential_type_value)
+        except ValueError as exc:
+            raise AuthenticationServiceUnavailableError from exc
+        if credential_type is CredentialTypeEnum.PAT and cache_ttl_seconds != 0:
+            raise AuthenticationServiceUnavailableError
         return AuthenticationResult(
             principal=Principal(username=username, role=role),
             valid_for_seconds=valid_for_seconds,
+            credential_type=credential_type,
+            credential_id=credential_id,
+            permissions=frozenset(permissions),
+            cache_ttl_seconds=cache_ttl_seconds,
         )

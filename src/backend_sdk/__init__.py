@@ -1,3 +1,3 @@
-from backend_sdk.auth import AuthenticationResult, Principal, RoleEnum
+from backend_sdk.auth import AuthenticationResult, CredentialTypeEnum, Principal, RoleEnum
 
-__all__ = ["AuthenticationResult", "Principal", "RoleEnum"]
+__all__ = ["AuthenticationResult", "CredentialTypeEnum", "Principal", "RoleEnum"]

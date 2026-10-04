@@ -68,7 +68,7 @@ app = Litestar(
     plugins=[
         AuthPlugin(
             config=AuthApiClientConfig(
-                verify_url="https://auth.example.com/api/auth/verify",
+                verify_url="https://auth.example.com/api/auth/verify/v2",
                 timeout_seconds=2,
                 cache_ttl_seconds=15,
                 max_cache_entries=10_000,

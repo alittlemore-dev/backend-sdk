@@ -3,12 +3,13 @@ from backend_sdk.auth.exceptions import (
     AuthenticationServiceUnavailableError,
     InvalidCredentialsError,
 )
-from backend_sdk.auth.models import AuthenticationResult, Principal, RoleEnum
+from backend_sdk.auth.models import AuthenticationResult, CredentialTypeEnum, Principal, RoleEnum
 
 __all__ = [
     "AuthenticationClient",
     "AuthenticationResult",
     "AuthenticationServiceUnavailableError",
+    "CredentialTypeEnum",
     "InvalidCredentialsError",
     "Principal",
     "RoleEnum",

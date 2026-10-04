@@ -2,6 +2,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 
+class CredentialTypeEnum(StrEnum):
+    SESSION = "session"
+    PAT = "pat"
+
+
 class RoleEnum(StrEnum):
     ANON = "anon"
     USER = "user"
@@ -64,3 +69,7 @@ class Principal:
 class AuthenticationResult:
     principal: Principal
     valid_for_seconds: int
+    credential_type: CredentialTypeEnum = CredentialTypeEnum.SESSION
+    credential_id: str = ""
+    permissions: frozenset[str] = frozenset()
+    cache_ttl_seconds: int = 0

@@ -315,7 +315,7 @@ def test_plugin_adds_bearer_scheme_to_list_components_without_losing_existing_sc
     assert security_schemes["bearerAuth"] == SecurityScheme(
         type="http",
         scheme="bearer",
-        bearer_format="PASETO",
+        bearer_format="PASETO or personal API token",
     )
 
 
