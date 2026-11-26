@@ -48,7 +48,7 @@ def check_artifact(*, artifact: Path, extra: str | None, integration_import: str
                 "from importlib.resources import files; "
                 "import backend_sdk; "
                 "m = metadata('alittlemore-backend-sdk'); "
-                "assert m['Requires-Python'] == '<3.15,>=3.13'; "
+                "assert m['Requires-Python'] == '<3.16,>=3.14'; "
                 "assert m.get_all('Provides-Extra') == ['auth-http', 'litestar']; "
                 "assert files(backend_sdk).joinpath('py.typed').is_file(); "
                 f"print('Installed package OK ({extra or 'base'}):', backend_sdk.__file__)",

@@ -6,7 +6,7 @@ import backend_sdk
 
 def test_package_metadata() -> None:
     package = metadata("alittlemore-backend-sdk")
-    assert package["Requires-Python"] == "<3.15,>=3.13"
+    assert package["Requires-Python"] == "<3.16,>=3.14"
     assert package.get_all("Provides-Extra") == ["auth-http", "litestar"]
 
 

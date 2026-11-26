@@ -13,7 +13,7 @@
 ## Package boundaries
 
 - Support at most two Python minor versions: the latest stable release and its immediate
-  predecessor, including all patch releases in both lines (currently 3.14.x and 3.13.x).
+  predecessor, including all patch releases in both lines.
   Prereleases do not advance this support window. When a new stable minor is released,
   move the window forward and update package metadata, CI, tooling, and documentation together.
 - Bound `requires-python` to this window. Run CI on both minor versions without patch pins;

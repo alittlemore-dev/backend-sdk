@@ -30,7 +30,7 @@ class Principal:
     role: RoleEnum
 
     @classmethod
-    def anonymous(cls) -> "Principal":
+    def anonymous(cls) -> Principal:
         return cls(username="anonymous", role=RoleEnum.ANON)
 
     @property

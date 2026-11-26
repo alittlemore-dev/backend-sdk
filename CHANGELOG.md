@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 - 2026-11-26
+
+- Support Python 3.15 and retain support for Python 3.14. Drop Python 3.13 support.
+
 ## 0.3.0 - 2026-10-04
 
 - Add typed session/PAT verification v2, explicit route permissions,

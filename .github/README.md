@@ -17,7 +17,7 @@ middleware, helpers, utilities, and factories.
 
 **Package:** `alittlemore-backend-sdk` · **Import:** `backend_sdk` · **License:** MIT
 
-**Python:** latest stable minor + its predecessor, all patch releases; currently 3.14.x and 3.13.x.
+**Python:** latest stable minor + its predecessor, all patch releases; currently 3.15.x and 3.14.x.
 
 **Tooling:** uv, Hatchling, Ruff, mypy, pytest, Bandit, pip-audit, Twine.
 
